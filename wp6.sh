@@ -3,7 +3,7 @@
 # EULA https://www.wifipineapple.com/licence/eula.txt
 # License https://www.wifipineapple.com/licence/software_licence.txt
 
-wpver=6.5
+wpver=6.6
 spineapplenmask=255.255.255.0
 spineapplenet=172.16.42.0/24
 spineapplelan=eth1
@@ -12,6 +12,11 @@ spineapplegw=192.168.1.1
 spineapplehostip=172.16.42.42
 spineappleip=172.16.42.1
 sfirsttime=1
+
+if [ "$(uname)" == "Darwin"]
+    then echo "This script is not compatible with Apple computers"
+    exit
+fi
 
 if [ "$EUID" -ne 0 ]
     then echo "This WiFi Pineapple Connection script requires root."
