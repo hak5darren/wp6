@@ -261,6 +261,35 @@ function savechanges {
     menu
 }
 
+#
+# IP Forwarding Settings
+#
+function set_ip_forward {
+    echo "Setting-up IP forwarding rules..."
+
+    # Enable kernel IP forwarding
+    echo '1' > /proc/sys/net/ipv4/ip_forward
+
+    wp2net=`iptables -nv -L FORWARD | grep -i "WifiPineapple to Inetnet"`
+    net2wp=`iptables -nv -L FORWARD | grep -i "Inetnet to WifiPineapple"`
+    netmsq=`iptables -t nat -nv -L POSTROUTING | grep -i "Inetnet Connection Sharing (ICS)"`
+
+    # Enable iptables outgoing forwarding 
+    if [ -z  "$wp2net" ]; then
+        iptables -I FORWARD 1 -i $spineapplewan -o $spineapplelan -m state --state NEW,ESTABLISHED,RELATED -m comment --comment "WifiPineapple to Inetnet" -j ACCEPT 
+    fi
+
+    # Enable iptables ingoing forwarding 
+    if [ -z  "$net2wp" ]; then
+        iptables -I FORWARD 2 -i $spineapplelan -o $spineapplewan -m state --state NEW,ESTABLISHED,RELATED -m comment --comment "Inetnet to WifiPineapple" -j ACCEPT
+    fi
+    
+    # Enable connection masquerading 
+    if [ -z  "$netmsq" ]; then
+        iptables -A POSTROUTING -t nat -o $spineapplewan -m comment --comment "Inetnet Connection Sharing (ICS)" -j MASQUERADE
+    fi
+}
+
 function connectsaved {
     if [[ "$sfirsttime" == "1" ]]; then
         printf "\n    Error: Settings unsaved. Run either Guided or Manual setup first.\n"; menu
@@ -279,17 +308,9 @@ function connectsaved {
     printf "    $(tput setaf 6) (_  _(_ ,)$(tput sgr0)       $(tput setaf 7)\___\\$(tput sgr0)        $(tput setaf 3)'<><>'$(tput sgr0)\n"
     ifconfig $spineapplelan $spineapplehostip netmask $spineapplenmask up #Bring up Ethernet Interface directly connected to Pineapple
     
-    #
-    # IP Forwarding Settingup 
-    #
-    
-    # Enable kernel IP forwarding
-    echo '1' > /proc/sys/net/ipv4/ip_forward
-    # Enable iptables forwarding 
-    iptables -I FORWARD 1 -i $spineapplewan -o $spineapplelan -m state --state NEW,ESTABLISHED,RELATED -m comment --comment "WifiPineapple to Inetnet" -j ACCEPT 
-    iptables -I FORWARD 2 -i $spineapplelan -o $spineapplewan -m state --state NEW,ESTABLISHED,RELATED -m comment --comment "Inetnet to WifiPineapple" -j ACCEPT
-    # Enable connection masquerading 
-    iptables -A POSTROUTING -t nat -o $spineapplewan -m comment --comment "Inetnet Connection Sharing (ICS)" -j MASQUERADE
+    # IP Forwarding Settings
+    set_ip_forward
+
     # remove default route
     route del default
     # add default gateway
