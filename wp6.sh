@@ -3,7 +3,7 @@
 # EULA https://www.wifipineapple.com/licence/eula.txt
 # License https://www.wifipineapple.com/licence/software_licence.txt
 
-wpver=6.5
+wpver=6.5.1
 spineapplenmask=255.255.255.0
 spineapplenet=172.16.42.0/24
 spineapplelan=eth1
@@ -261,6 +261,35 @@ function savechanges {
     menu
 }
 
+#
+# IP Forwarding Settings
+#
+function set_ip_forward {
+    echo "Setting-up IP forwarding rules..."
+
+    # Enable kernel IP forwarding
+    echo '1' > /proc/sys/net/ipv4/ip_forward
+
+    wp2net=`iptables -nv -L FORWARD | grep -i "WifiPineapple to Inetnet"`
+    net2wp=`iptables -nv -L FORWARD | grep -i "Inetnet to WifiPineapple"`
+    netmsq=`iptables -t nat -nv -L POSTROUTING | grep -i "Inetnet Connection Sharing (ICS)"`
+
+    # Enable iptables outgoing forwarding 
+    if [ -z  "$wp2net" ]; then
+        iptables -I FORWARD 1 -i $spineapplewan -o $spineapplelan -m state --state NEW,ESTABLISHED,RELATED -m comment --comment "WifiPineapple to Inetnet" -j ACCEPT 
+    fi
+
+    # Enable iptables ingoing forwarding 
+    if [ -z  "$net2wp" ]; then
+        iptables -I FORWARD 2 -i $spineapplelan -o $spineapplewan -m state --state NEW,ESTABLISHED,RELATED -m comment --comment "Inetnet to WifiPineapple" -j ACCEPT
+    fi
+    
+    # Enable connection masquerading 
+    if [ -z  "$netmsq" ]; then
+        iptables -A POSTROUTING -t nat -o $spineapplewan -m comment --comment "Inetnet Connection Sharing (ICS)" -j MASQUERADE
+    fi
+}
+
 function connectsaved {
     if [[ "$sfirsttime" == "1" ]]; then
         printf "\n    Error: Settings unsaved. Run either Guided or Manual setup first.\n"; menu
@@ -278,14 +307,14 @@ function connectsaved {
     printf "    $(tput setaf 6)   (  _ )_ $(tput sgr0) $(tput setaf 2)<-->$(tput sgr0)  $(tput setaf 7)[___]$(tput sgr0)  $(tput setaf 2)<-->$(tput sgr0)  $(tput setaf 3),<><>,$(tput sgr0)\n"
     printf "    $(tput setaf 6) (_  _(_ ,)$(tput sgr0)       $(tput setaf 7)\___\\$(tput sgr0)        $(tput setaf 3)'<><>'$(tput sgr0)\n"
     ifconfig $spineapplelan $spineapplehostip netmask $spineapplenmask up #Bring up Ethernet Interface directly connected to Pineapple
-    echo '1' > /proc/sys/net/ipv4/ip_forward # Enable IP Forwarding
-    iptables -X #clear chains and rules
-    iptables -F
-    iptables -A FORWARD -i $spineapplewan -o $spineapplelan -s $spineapplenet -m state --state NEW -j ACCEPT #setup IP forwarding
-    iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT
-    iptables -A POSTROUTING -t nat -j MASQUERADE
-    route del default #remove default route
-    route add default gw $spineapplegw $spineapplewan #add default gateway
+    
+    # IP Forwarding Settings
+    set_ip_forward
+
+    # remove default route
+    route del default
+    # add default gateway
+    route add default gw $spineapplegw $spineapplewan
     printf "\n    Browse to http://$spineappleip:1471\n\n"
     exit
 }
@@ -297,7 +326,7 @@ function bunny {
     exit
 }
 
-banner #remove for less 1337
+banner # remove for less 1337
 showsettings
 if [[ "$sfirsttime" == "1" ]]; then
     printf "
