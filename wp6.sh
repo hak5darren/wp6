@@ -192,7 +192,7 @@ function guidedsetup {
         fi
     done
     printf "[Checking]"
-    sleep 5 # Wait as the system is likely to rename interface. Sleeping rather than more advanced error handling becasue reasons. Try: dmesg | tail | grep -E 'asix.*renamed'
+    sleep 5 # Wait as the system is likely to rename interface. Sleeping rather than more advanced error handling because reasons. Try: dmesg | tail | grep -E 'asix.*renamed'
     pineappleiface=$(ip addr | grep '00:[cC]0:[cC][aA]\|00:13:37' -B1 | awk {'print $2'} | head -1 | grep 'eth\|en' | sed 's/://g')
     printf "\n    Detected WiFi Pineapple on interface $(tput bold)$pineappleiface$(tput sgr0)\n";
     read -r -p "    Use the above detected WiFi Pineapple interface?    [Y/n]? " pi
